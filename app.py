@@ -3,14 +3,14 @@ import pandas as pd
 import joblib
 import numpy as np
 
-# Tải mô hình và bộ scaler đã huấn luyện (đảm bảo các file này nằm trong thư mục models)
+# Tải mô hình và bộ scaler đã huấn luyện
 model = joblib.load("models/stroke_model.pkl")
 scaler = joblib.load("models/scaler.pkl")
 
 st.title("Dự đoán khả năng đột quỵ của bệnh nhân")
 st.write("Nhập thông tin bệnh nhân dưới đây:")
 
-# Lấy dữ liệu từ người dùng với các lựa chọn hiển thị bằng tiếng Việt
+# Lấy dữ liệu từ người dùng với các lựa chọn bằng tiếng Việt
 gender = st.selectbox("Giới tính", ["Nam", "Nữ"])
 age = st.number_input("Tuổi", min_value=0, max_value=120, value=50)
 hypertension = st.selectbox("Tiền sử tăng huyết áp", ["Không", "Có"])
@@ -23,11 +23,11 @@ bmi = st.number_input("Chỉ số BMI", min_value=0.0, value=25.0)
 smoking_status = st.selectbox("Tình trạng hút thuốc", ["Đã hút thuốc", "Chưa từng hút thuốc", "Đang hút thuốc", "Không rõ"])
 
 if st.button("Dự đoán"):
-    # Chuyển đổi lựa chọn "Có"/"Không" thành giá trị số
+    # Chuyển đổi "Có"/"Không" thành giá trị số cho biến tăng huyết áp và bệnh tim
     hypertension_val = 1 if hypertension == "Có" else 0
     heart_disease_val = 1 if heart_disease == "Có" else 0
 
-    # Tạo DataFrame từ dữ liệu người dùng nhập
+    # Tạo DataFrame từ dữ liệu nhập
     input_data = pd.DataFrame({
         "gender": [gender],
         "age": [age],
@@ -41,12 +41,27 @@ if st.button("Dự đoán"):
         "smoking_status": [smoking_status]
     })
 
-    # Tiền xử lý dữ liệu: mã hóa các biến phân loại theo mapping đã sử dụng trong quá trình huấn luyện
+    # Hiển thị dữ liệu nhập ban đầu
+    st.write("Dữ liệu nhập ban đầu:", input_data)
+
+    # Áp dụng mapping cho các biến phân loại theo cách đã sử dụng khi huấn luyện
+ # Mapping cho các biến phân loại (đảm bảo khớp với cách LabelEncoder mã hóa trong quá trình huấn luyện)
     gender_map = {"Nam": 1, "Nữ": 0}
     ever_married_map = {"Có": 1, "Không": 0}
-    work_type_map = {"Tư nhân": 2, "Tự kinh doanh": 3, "Công chức": 1, "Trẻ em": 0, "Không làm việc": 4}
+    work_type_map = {
+    "Công chức": 0,      # Govt_job
+    "Không làm việc": 1,  # Never_worked
+    "Tư nhân": 2,         # Private
+    "Tự kinh doanh": 3,   # Self-employed
+    "Trẻ em": 4           # children
+    }
     Residence_type_map = {"Đô thị": 1, "Nông thôn": 0}
-    smoking_status_map = {"Đã hút thuốc": 1, "Chưa từng hút thuốc": 2, "Đang hút thuốc": 0, "Không rõ": 3}
+    smoking_status_map = {
+    "Không rõ": 0,            # Unknown
+    "Đã hút thuốc": 1,        # formerly smoked
+    "Chưa từng hút thuốc": 2,  # never smoked
+    "Đang hút thuốc": 3       # smokes
+    }
 
     input_data["gender"] = input_data["gender"].map(gender_map)
     input_data["ever_married"] = input_data["ever_married"].map(ever_married_map)
@@ -54,14 +69,24 @@ if st.button("Dự đoán"):
     input_data["Residence_type"] = input_data["Residence_type"].map(Residence_type_map)
     input_data["smoking_status"] = input_data["smoking_status"].map(smoking_status_map)
 
-    # Chuẩn hóa các đặc trưng số bằng bộ scaler đã lưu
+
+    # Hiển thị dữ liệu sau mapping
+    st.write("Dữ liệu sau mapping:", input_data)
+
+    # Chuẩn hóa các đặc trưng số bằng scaler đã lưu
     numeric_features = ["age", "avg_glucose_level", "bmi"]
     input_data[numeric_features] = scaler.transform(input_data[numeric_features])
     
+    # Hiển thị dữ liệu sau chuẩn hóa
+    st.write("Dữ liệu sau chuẩn hóa:", input_data)
+    
     # Dự đoán với mô hình
     prediction = model.predict(input_data)
-
-    # Hiển thị kết quả dự đoán
+    prediction_proba = model.predict_proba(input_data)
+    
+    # Hiển thị xác suất dự đoán
+    st.write("Xác suất dự đoán:", prediction_proba)
+    
     if prediction[0] == 1:
         st.error("Kết quả: Có khả năng bị đột quỵ!")
     else:
